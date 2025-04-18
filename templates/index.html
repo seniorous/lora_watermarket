@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片水印工具</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #50c878;
+            --accent-color: #ff6b6b;
+            --background-color: #f8f9fa;
+            --card-background: #ffffff;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: #333;
+        }
+
+        .container {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            color: var(--primary-color);
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background: var(--card-background);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .preview-container {
+            max-width: 500px;
+            margin: 20px auto;
+            border: 2px dashed var(--primary-color);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: rgba(74, 144, 226, 0.05);
+        }
+
+        .preview-container:hover {
+            border-color: var(--accent-color);
+            background: rgba(255, 107, 107, 0.05);
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            display: none;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .custom-range {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+        }
+
+        .custom-range::-webkit-slider-thumb {
+            background: var(--primary-color);
+        }
+
+        .range-value {
+            font-size: 0.9em;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border: none;
+            padding: 10px 30px;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: #357abd;
+            transform: scale(1.05);
+        }
+
+        .form-control {
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            padding: 10px 15px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(74, 144, 226, 0.25);
+        }
+
+        .form-check-input:checked {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+
+        .form-label {
+            color: #495057;
+            font-weight: 500;
+        }
+
+        #dragText {
+            color: #6c757d;
+            margin-top: 10px;
+        }
+
+        /* 添加进度条动画 */
+        .progress-bar {
+            height: 4px;
+            width: 100%;
+            background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            position: fixed;
+            top: 0;
+            left: 0;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .card {
+                margin: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-bar"></div>
+    <div class="container py-5">
+        <h1 class="text-center mb-4">智能水印工具</h1>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <ul class="nav nav-tabs mb-3" id="processingTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="single-tab" data-bs-toggle="tab" data-bs-target="#single-processing" type="button" role="tab" aria-controls="single-processing" aria-selected="true">单张处理</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="batch-tab" data-bs-toggle="tab" data-bs-target="#batch-processing" type="button" role="tab" aria-controls="batch-processing" aria-selected="false">批量处理</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="detect-tab" data-bs-toggle="tab" data-bs-target="#detect-processing" type="button" role="tab" aria-controls="detect-processing" aria-selected="false">水印检测</button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="processingTabsContent">
+                    <!-- 单张处理 -->
+                    <div class="tab-pane fade show active" id="single-processing" role="tabpanel" aria-labelledby="single-tab">
+                        <div class="card">
+                            <div class="card-body">
+                                <form id="uploadForm" action="/process" method="post" enctype="multipart/form-data">
+                                    <div class="mb-4">
+                                        <label class="form-label">选择图片</label>
+                                        <input type="file" class="form-control" name="image" id="imageInput" accept="image/*" required>
+                                    </div>
+
+                            <div class="preview-container">
+                                <img id="imagePreview" alt="预览">
+                                <p class="text-muted" id="dragText">拖放图片到此处或点击选择</p>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="addInvisible" name="add_invisible" value="true" checked>
+                                        <label class="form-check-label">添加不可见水印</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="addVisible" name="add_visible" value="true">
+                                        <label class="form-check-label">添加可见水印</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">不可见水印强度</label>
+                                <input type="range" class="custom-range" name="invisible_strength" 
+                                       min="0.01" max="0.5" step="0.01" value="0.1" id="invisibleStrength">
+                                <span class="range-value" id="invisibleStrengthValue">0.1</span>
+                            </div>
+
+                            <div id="visibleOptions" style="display: none;">
+                                <div class="mb-3">
+                                    <label class="form-label">水印文字</label>
+                                    <input type="text" class="form-control" name="visible_text" value="少游">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">可见水印透明度</label>
+                                    <input type="range" class="custom-range" name="visible_opacity" 
+                                           min="0.1" max="1" step="0.1" value="0.3" id="visibleOpacity">
+                                    <span class="range-value" id="visibleOpacityValue">0.3</span>
+                                </div>
+                            </div>
+
+                            <div class="text-center">
+                                <button type="submit" class="btn btn-primary">处理图片</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+                    
+                    <!-- 批量处理 -->
+                    <div class="tab-pane fade" id="batch-processing" role="tabpanel" aria-labelledby="batch-tab">
+                        <div class="card">
+                            <div class="card-body">
+                                <form id="batchUploadForm" action="/process_batch" method="post" enctype="multipart/form-data">
+                                    <div class="mb-4">
+                                        <label class="form-label">选择多个图片文件</label>
+                                        <input type="file" class="form-control" name="images[]" id="batchImageInput" accept="image/*" multiple required>
+                                        <small class="text-muted">可以按住Ctrl键选择多个文件</small>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label class="form-label">输出文件夹路径（可选）</label>
+                                        <input type="text" class="form-control" name="output_dir" id="outputDir" placeholder="例如：D:\Pictures\Watermarked">
+                                        <small class="text-muted">如不指定，将提供打包下载</small>
+                                    </div>
+                                    
+                                    <div class="mb-3" id="selectedFilesInfo">
+                                        <p class="text-muted">已选择 <span id="fileCount">0</span> 个文件</p>
+                                    </div>
+
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="batchAddInvisible" name="add_invisible" value="true" checked>
+                                                <label class="form-check-label">添加不可见水印</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="batchAddVisible" name="add_visible" value="true">
+                                                <label class="form-check-label">添加可见水印</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">不可见水印强度</label>
+                                        <input type="range" class="custom-range" name="invisible_strength" 
+                                               min="0.01" max="0.5" step="0.01" value="0.1" id="batchInvisibleStrength">
+                                        <span class="range-value" id="batchInvisibleStrengthValue">0.1</span>
+                                    </div>
+
+                                    <div id="batchVisibleOptions" style="display: none;">
+                                        <div class="mb-3">
+                                            <label class="form-label">水印文字</label>
+                                            <input type="text" class="form-control" name="visible_text" value="少游">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">可见水印透明度</label>
+                                            <input type="range" class="custom-range" name="visible_opacity" 
+                                                   min="0.1" max="1" step="0.1" value="0.3" id="batchVisibleOpacity">
+                                            <span class="range-value" id="batchVisibleOpacityValue">0.3</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-center">
+                                        <button type="submit" class="btn btn-primary" id="batchProcessBtn">批量处理图片</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 水印检测 -->
+                    <div class="tab-pane fade" id="detect-processing" role="tabpanel" aria-labelledby="detect-tab">
+                        <div class="card">
+                            <div class="card-body">
+                                <form id="detectForm" action="/detect_watermark" method="post" enctype="multipart/form-data">
+                                    <div class="mb-4">
+                                        <label class="form-label">选择需要检测水印的图片</label>
+                                        <input type="file" class="form-control" name="image" id="detectImageInput" accept="image/*" required>
+                                    </div>
+
+                                    <div class="preview-container">
+                                        <img id="detectImagePreview" alt="预览">
+                                        <p class="text-muted" id="detectDragText">拖放图片到此处或点击选择</p>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">检测灵敏度</label>
+                                        <input type="range" class="custom-range" name="sensitivity" 
+                                               min="0.1" max="2.0" step="0.1" value="1.0" id="detectSensitivity">
+                                        <span class="range-value" id="sensitivityValue">1.0</span>
+                                        <small class="text-muted d-block mt-1">较高的灵敏度可以检测出更微弱的水印，但可能增加误报率</small>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="enableRobustMode" name="robust_mode" value="true" checked>
+                                            <label class="form-check-label">启用鲁棒性检测模式</label>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">鲁棒性模式能够检测经过缩放、裁剪、压缩等处理后的水印</small>
+                                    </div>
+
+                                    <div class="text-center">
+                                        <button type="submit" class="btn btn-primary">检测水印</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 图片预览
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('imagePreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    document.getElementById('dragText').style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // 水印检测图片预览
+        document.getElementById('detectImageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('detectImagePreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    document.getElementById('detectDragText').style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 可见水印选项显示控制
+        document.getElementById('addVisible').addEventListener('change', function(e) {
+            document.getElementById('visibleOptions').style.display = 
+                e.target.checked ? 'block' : 'none';
+        });
+        
+        // 批量处理可见水印选项显示控制
+        document.getElementById('batchAddVisible').addEventListener('change', function(e) {
+            document.getElementById('batchVisibleOptions').style.display = 
+                e.target.checked ? 'block' : 'none';
+        });
+
+        // 滑块值实时显示
+        document.getElementById('invisibleStrength').addEventListener('input', function(e) {
+            document.getElementById('invisibleStrengthValue').textContent = e.target.value;
+        });
+
+        document.getElementById('visibleOpacity').addEventListener('input', function(e) {
+            document.getElementById('visibleOpacityValue').textContent = e.target.value;
+        });
+        
+        // 批量处理滑块值实时显示
+        document.getElementById('batchInvisibleStrength').addEventListener('input', function(e) {
+            document.getElementById('batchInvisibleStrengthValue').textContent = e.target.value;
+        });
+
+        document.getElementById('batchVisibleOpacity').addEventListener('input', function(e) {
+            document.getElementById('batchVisibleOpacityValue').textContent = e.target.value;
+        });
+        
+        // 水印检测灵敏度滑块值实时显示
+        document.getElementById('detectSensitivity').addEventListener('input', function(e) {
+            document.getElementById('sensitivityValue').textContent = e.target.value;
+        });
+        
+        // 水印检测表单提交处理
+        document.getElementById('detectForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // 显示加载状态
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = '检测中...';
+            submitBtn.disabled = true;
+            
+            // 获取表单数据
+            const formData = new FormData(this);
+            
+            // 发送AJAX请求
+            fetch('/detect_watermark', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 恢复按钮状态
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                
+                // 显示结果
+                if (data.error) {
+                    alert('错误: ' + data.error);
+                } else {
+                    // 创建结果容器
+                    const resultContainer = document.createElement('div');
+                    resultContainer.innerHTML = data.result_html;
+                    
+                    // 清除之前的结果
+                    const oldResult = document.querySelector('#detectResultContainer');
+                    if (oldResult) {
+                        oldResult.remove();
+                    }
+                    
+                    // 添加新结果
+                    resultContainer.id = 'detectResultContainer';
+                    document.getElementById('detectForm').after(resultContainer);
+                    
+                    // 滚动到结果
+                    resultContainer.scrollIntoView({ behavior: 'smooth' });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                alert('请求失败，请重试');
+            });
+        });
+        
+        // 批量文件选择显示
+        document.getElementById('batchImageInput').addEventListener('change', function(e) {
+            const fileCount = e.target.files.length;
+            document.getElementById('fileCount').textContent = fileCount;
+        });
+
+        // 拖放功能
+        const dropZones = document.querySelectorAll('.preview-container');
+        
+        dropZones.forEach(dropZone => {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            if (dropZone.closest('#single-processing')) {
+                dropZone.addEventListener('drop', handleDropSingle, false);
+            } else if (dropZone.closest('#detect-processing')) {
+                dropZone.addEventListener('drop', handleDropDetect, false);
+            }
+        });
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function handleDropSingle(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            document.getElementById('imageInput').files = files;
+            
+            if (files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('imagePreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    document.getElementById('dragText').style.display = 'none';
+                }
+                reader.readAsDataURL(files[0]);
+            }
+        }
+        
+        function handleDropDetect(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            document.getElementById('detectImageInput').files = files;
+            
+            if (files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('detectImagePreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    document.getElementById('detectDragText').style.display = 'none';
+                }
+                reader.readAsDataURL(files[0]);
+            }
+        }
+    </script>
+</body>
+</html>

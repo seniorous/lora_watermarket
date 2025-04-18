@@ -1,0 +1,26 @@
+# 改进的图像水印方法
+
+基于Anti-DreamBooth项目思路，对水印系统进行了以下改进：
+
+1. 自适应水印强度
+- 使用Sobel算子计算图像梯度
+- 根据图像复杂度动态调整水印强度
+
+2. 多层次水印保护
+- 可见水印：多位置添加，随机扰动
+- 不可见水印：多频域区域，随机模式
+
+3. 水印检测机制
+- DCT频域特征分析
+- 水印强度评分
+
+使用方法：
+```python
+from watermark import WatermarkGenerator
+watermarker = WatermarkGenerator()
+image = watermarker.add_invisible_watermark(image)
+image = watermarker.add_visible_watermark(image)
+score = watermarker.detect_watermark(image)
+```
+
+依赖：OpenCV, NumPy, PIL, SciPy
